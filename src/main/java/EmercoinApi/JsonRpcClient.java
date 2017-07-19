@@ -74,8 +74,13 @@ public class JsonRpcClient {
     }
 
     public File getFileFromNVS(String key) throws Exception {
-        JSONObject response = this.callMethod("name_show", new String[]{key});
-        System.out.println(response);
+        JSONObject response = this.callMethod("name_show", new Object[]{key});
+        if(response.get("value") != null) {
+            throw new Exception();
+        }
+        String base64Encoded = (String) ((JSONObject) response.get("result")).get("value");
+
+        System.out.println(Base64.getDecoder().decode(base64Encoded));
         return new File(""); //TODO
     }
 
