@@ -183,7 +183,7 @@ public class JsonRpcClient {
             String stringBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(path));
             String signature = signMessage(emercoinaddress, stringBase64);
             if (signature != null ) {
-                String value = "Signature=" + signature;
+                String value = "doc=" + stringBase64 +" Signature=" + signature;
                 String serialNumber = "dpo:" + vendor + ":" + docname + ":0";
                 callMethod("name_new", serialNumber, value, 10, emercoinaddress);
             }
