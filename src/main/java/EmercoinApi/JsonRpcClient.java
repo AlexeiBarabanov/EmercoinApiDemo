@@ -6,6 +6,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -17,8 +18,10 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 
 /**
  * Created by a.barabanov on 19.07.2017.
@@ -89,5 +92,31 @@ public class JsonRpcClient {
         String content = Base64.getEncoder().encodeToString(Files.readAllBytes(path));
         JSONObject response = this.callMethod("name_new", new Object[]{name, content, days});
         System.out.println(response.toJSONString());
+    }
+
+
+
+
+
+    /**
+     * Function return all found json objects with similar name
+     * as regex.
+     * @param regexOfName - regex of destination name.
+     * @return - all found json objects.
+     */
+    public List<JSONObject> findAllSimilarNames(String regexOfName) throws Exception
+    {
+
+        String emercoinCmd = "name_filter";
+        JSONObject response = this.callMethod(emercoinCmd, new Object[]{regexOfName});
+
+        List<JSONObject> jsonObjects = new ArrayList<>();
+        JSONArray jsonArray = (JSONArray) response.get("result");
+
+        jsonArray.forEach(jsonObj->{
+            jsonObjects.add((JSONObject) jsonObj);
+        });
+
+        return jsonObjects;
     }
 }
