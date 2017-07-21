@@ -12,6 +12,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -154,5 +155,37 @@ public class JsonRpcClient {
 
             System.out.println(signature);
         });
+    }
+
+    public boolean putDocumentToDPO(String docname, String emercoinaddress, String localFilename) {
+        Path path = Paths.get(localFilename);
+        String vendor = "iteco";
+        try {
+            String stringBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(path));
+            String signature = signMessage(emercoinaddress, stringBase64);
+            if (signature != null ) {
+                String value = "Signature=" + signature;
+                String serialNumber = "dpo:" + vendor + ":" + docname + ":0";
+                callMethod("name_new", serialNumber, value, 10, emercoinaddress);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        return true;
+    }
+
+    private String signMessage(String emercoinaddress, String message) {
+        String signature = null;
+        try {
+            JSONObject signedMessage = callMethod("signmessage", emercoinaddress, message);
+            if (signedMessage.containsKey("result")) {
+                signature = (String)signedMessage.get("result");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return signature;
     }
 }
