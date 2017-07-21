@@ -6,6 +6,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -19,12 +20,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by a.barabanov on 19.07.2017.
  */
 public class JsonRpcClient {
 
+    private static final String service = "dpo";
     private URI uri;
 
     public JsonRpcClient(String rpcurl, Integer rpcport, String rpcuser, String rpcpassword) {
@@ -40,7 +44,7 @@ public class JsonRpcClient {
         }
     }
 
-    public JSONObject callMethod(String method, Object[] params) throws Exception {
+    public JSONObject callMethod(String method, Object...params) throws Exception {
         HttpClient client = HttpClientBuilder.create().build();
 
         HttpPost request = new HttpPost(uri);
@@ -74,7 +78,7 @@ public class JsonRpcClient {
     }
 
     public File getFileFromNVS(String key) throws Exception {
-        JSONObject response = this.callMethod("name_show", new Object[]{key});
+        JSONObject response = this.callMethod("name_show", key);
         if(response.get("value") != null) {
             throw new Exception();
         }
@@ -87,7 +91,44 @@ public class JsonRpcClient {
     public void putFileToNVS(String name, String filename, Integer days) throws Exception {
         Path path = Paths.get(filename);
         String content = Base64.getEncoder().encodeToString(Files.readAllBytes(path));
-        JSONObject response = this.callMethod("name_new", new Object[]{name, content, days});
+        JSONObject response = this.callMethod("name_new", name, content, days);
         System.out.println(response.toJSONString());
+    }
+
+    public JSONObject getValueFromNVS(String name) throws Exception {
+        return this.callMethod("name_show", name);
+    }
+
+    public void proveOwnership(JSONObject ownerItem, JSONObject serialItem) throws Exception {
+        String address = null;
+        String signature = null;
+        String message = null;
+        this.callMethod("verifymessage", address, signature, message);
+    }
+
+    public void getVerifiedDpoItems(String name) throws Exception {
+        String filter = "^" + service + ":" + name + ":.+";
+        JSONObject response = this.callMethod("name_filter", filter);
+
+        if(response.get("error") != null)
+            throw new Exception("Error occurred during execution");
+
+        JSONArray serialItems = (JSONArray) response.get("result");
+
+        if(serialItems.isEmpty())
+            throw new Exception("Specified brand was not found in NVS");
+
+        serialItems.forEach((serialItem) -> {
+            String signature = (String) ((JSONObject) serialItem).get("value");
+            Pattern pattern = Pattern.compile("\"^SIGNATURE=.*$\"");
+            Matcher matcher = pattern.matcher(signature);
+            while (matcher.find())
+            {
+                System.out.println(matcher.group(1));
+            }
+
+            System.out.println(signature);
+        });
+
     }
 }
