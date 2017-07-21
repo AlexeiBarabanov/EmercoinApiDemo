@@ -18,8 +18,10 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -95,6 +97,29 @@ public class JsonRpcClient {
         System.out.println(response.toJSONString());
     }
 
+
+    /**
+     * Function return all found json objects with similar name
+     * as regex.
+     * @param regexOfName - regex of destination name.
+     * @return - all found json objects.
+     */
+    public List<JSONObject> findAllSimilarNames(String regexOfName) throws Exception
+    {
+
+        String emercoinCmd = "name_filter";
+        JSONObject response = this.callMethod(emercoinCmd, new Object[]{regexOfName});
+
+        List<JSONObject> jsonObjects = new ArrayList<>();
+        JSONArray jsonArray = (JSONArray) response.get("result");
+
+        jsonArray.forEach(jsonObj->{
+            jsonObjects.add((JSONObject) jsonObj);
+        });
+
+        return jsonObjects;
+    }
+  
     public JSONObject getValueFromNVS(String name) throws Exception {
         return this.callMethod("name_show", name);
     }
@@ -129,6 +154,5 @@ public class JsonRpcClient {
 
             System.out.println(signature);
         });
-
     }
 }
