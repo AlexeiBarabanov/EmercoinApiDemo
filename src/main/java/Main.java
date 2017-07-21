@@ -11,7 +11,6 @@ public class Main {
 //        rpcClient.getFileFromNVS("inno:test");
 //        rpcClient.putFileToNVS("inno:test", "test.txt", 1);
         rpcClient.getVerifiedDpoItems("iteco");
-//        System.out.println(rpcClient.callMethod("signmessage", new Object[]{"EJ5Lvzg6bhkVm5iRQV4kLd85daBPP6rtVH", "message"}));
 
     }
 }
