@@ -99,36 +99,56 @@ public class JsonRpcClient {
         return this.callMethod("name_show", name);
     }
 
-    public void proveOwnership(JSONObject ownerItem, JSONObject serialItem) throws Exception {
-        String address = null;
-        String signature = null;
-        String message = null;
-        this.callMethod("verifymessage", address, signature, message);
+    public boolean verifyMessage(String address, String signature, String message) {
+        String result = null;
+        try {
+            result = this.callMethod("verifymessage", address, signature, message).get("result").toString();
+            System.out.println(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new Boolean(result);
+    }
+
+    public boolean proveOwnership(JSONObject serialItem) {
+        Pattern pattern = Pattern.compile("^Signature=(.*)$");
+        String serialName = (String) serialItem.get("name");
+        String value = (String) serialItem.get("value");
+        Matcher matcher = pattern.matcher(value);
+        if (matcher.find()) {
+
+            String address = null;
+            try {
+                JSONObject result = (JSONObject) this.getValueFromNVS(serialName).get("result");
+                address = (String) result.get("address");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            String signature = matcher.group(1);
+            boolean result = verifyMessage(address, signature, serialName);
+            return result;
+        } else {
+            System.out.println("Signature not found for dpo item: " + serialName);
+        }
+        return false;
     }
 
     public void getVerifiedDpoItems(String name) throws Exception {
         String filter = "^" + service + ":" + name + ":.+";
-        JSONObject response = this.callMethod("name_filter", filter);
 
+        JSONObject response = this.callMethod("name_filter", filter);
         if(response.get("error") != null)
             throw new Exception("Error occurred during execution");
 
         JSONArray serialItems = (JSONArray) response.get("result");
-
         if(serialItems.isEmpty())
             throw new Exception("Specified brand was not found in NVS");
 
-        serialItems.forEach((serialItem) -> {
-            String signature = (String) ((JSONObject) serialItem).get("value");
-            Pattern pattern = Pattern.compile("\"^SIGNATURE=.*$\"");
-            Matcher matcher = pattern.matcher(signature);
-            while (matcher.find())
-            {
-                System.out.println(matcher.group(1));
-            }
-
-            System.out.println(signature);
-        });
+        for(int i = 0; i < serialItems.size(); i++) {
+            System.out.println();
+            proveOwnership((JSONObject) serialItems.get(i));
+        }
 
     }
 }
