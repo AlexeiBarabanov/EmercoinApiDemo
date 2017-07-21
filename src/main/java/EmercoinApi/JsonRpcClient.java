@@ -104,7 +104,7 @@ public class JsonRpcClient {
      * @param regexOfName - regex of destination name.
      * @return - all found json objects.
      */
-    public List<JSONObject> findAllSimilarNames(String regexOfName) throws Exception
+    private List<JSONObject> findAllSimilarNames(String regexOfName) throws Exception
     {
 
         String emercoinCmd = "name_filter";
