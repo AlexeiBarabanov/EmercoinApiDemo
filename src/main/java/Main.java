@@ -1,8 +1,5 @@
 import EmercoinApi.JsonRpcClient;
 
-import java.io.File;
-import java.nio.file.Paths;
-
 /**
  * Created by a.barabanov on 19.07.2017.
  */
@@ -11,8 +8,10 @@ public class Main {
 
         JsonRpcClient rpcClient = new JsonRpcClient("127.0.0.1", 6662, "emccoinrpc", "secret");
 
-        rpcClient.getFileFromNVS("inno:test");
+//        rpcClient.getFileFromNVS("inno:test");
 //        rpcClient.putFileToNVS("inno:test", "test.txt", 1);
+        rpcClient.getVerifiedDpoItems("iteco");
+//        System.out.println(rpcClient.callMethod("signmessage", new Object[]{"EJ5Lvzg6bhkVm5iRQV4kLd85daBPP6rtVH", "message"}));
 
     }
 }
