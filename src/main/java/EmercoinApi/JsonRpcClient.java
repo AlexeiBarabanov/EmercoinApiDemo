@@ -164,17 +164,18 @@ public class JsonRpcClient {
         String filter = "^" + service + ":" + name + ":.+";
 
         JSONObject response = this.callMethod("name_filter", filter);
-        if(response.get("error") != null)
+        if (response.get("error") != null)
             throw new Exception("Error occurred during execution");
 
         JSONArray serialItems = (JSONArray) response.get("result");
-        if(serialItems.isEmpty())
+        if (serialItems.isEmpty())
             throw new Exception("Specified brand was not found in NVS");
 
-        for(int i = 0; i < serialItems.size(); i++) {
+        for (int i = 0; i < serialItems.size(); i++) {
             System.out.println();
             proveOwnership((JSONObject) serialItems.get(i));
         }
+    }
 
     public boolean putDocumentToDPO(String docname, String emercoinaddress, String localFilename) {
         Path path = Paths.get(localFilename);
