@@ -177,16 +177,17 @@ public class JsonRpcClient {
         }
     }
 
-    public boolean putDocumentToDPO(String docname, String emercoinaddress, String localFilename) {
+    public boolean putDocumentToDPO(String docname, String ownerEmercoinaddress,
+                                    String arbitraryEmercoinAddress, int docVersion, String localFilename) {
         Path path = Paths.get(localFilename);
         String vendor = "iteco";
         try {
             String stringBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(path));
-            String signature = signMessage(emercoinaddress, stringBase64);
+            String signature = signMessage(ownerEmercoinaddress, stringBase64);
             if (signature != null ) {
                 String value = "doc=" + stringBase64 +" Signature=" + signature;
-                String serialNumber = "dpo:" + vendor + ":" + docname + ":0";
-                callMethod("name_new", serialNumber, value, 10, emercoinaddress);
+                String serialNumber = service + vendor + ":" + docname + ":" + docVersion;
+                callMethod("name_new", serialNumber, value, 10, arbitraryEmercoinAddress);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -196,10 +197,10 @@ public class JsonRpcClient {
         return true;
     }
 
-    private String signMessage(String emercoinaddress, String message) {
+    private String signMessage(String emercoinAddress, String message) {
         String signature = null;
         try {
-            JSONObject signedMessage = callMethod("signmessage", emercoinaddress, message);
+            JSONObject signedMessage = callMethod("signmessage", emercoinAddress, message);
             if (signedMessage.containsKey("result")) {
                 signature = (String)signedMessage.get("result");
             }
