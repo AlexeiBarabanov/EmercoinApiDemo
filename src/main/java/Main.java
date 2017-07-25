@@ -4,13 +4,11 @@ import EmercoinApi.JsonRpcClient;
  * Created by a.barabanov on 19.07.2017.
  */
 public class Main {
-    public static void main(String[] args) throws Exception {
 
-        JsonRpcClient rpcClient = new JsonRpcClient("127.0.0.1", 6662, "emccoinrpc", "secret");
+    public static void main(String[] args) throws Throwable {
 
-//        rpcClient.getFileFromNVS("inno:test");
-//        rpcClient.putFileToNVS("inno:test", "test.txt", 1);
-        rpcClient.getVerifiedDpoItems("iteco");
+        JsonRpcClient client = new JsonRpcClient("emccoinrpc", "secret");
 
+        client.getVerifiedDpoItems("iteco");
     }
 }

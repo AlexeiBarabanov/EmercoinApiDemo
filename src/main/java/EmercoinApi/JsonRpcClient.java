@@ -1,28 +1,14 @@
 package EmercoinApi;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
+import com.googlecode.jsonrpc4j.IJsonRpcClient;
+import com.googlecode.jsonrpc4j.JsonRpcHttpClient;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,163 +17,83 @@ import java.util.regex.Pattern;
  */
 public class JsonRpcClient {
 
-    private static final String service = "dpo";
-    private URI uri;
+    private static final String SERVICE = "dpo";
+    public static String LOCALHOST = "http://127.0.0.1";
+    public static String PORT = "6662";
+    public static IJsonRpcClient client;
 
-    public JsonRpcClient(String rpcurl, Integer rpcport, String rpcuser, String rpcpassword) {
-        try {
-            uri = new URIBuilder()
-                    .setScheme("http")
-                    .setHost(rpcurl)
-                    .setPort(rpcport)
-                    .setUserInfo(rpcuser, rpcpassword)
-                    .build();
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-        }
+    public JsonRpcClient(String username, String password, String rpcurl, String rpcport) throws Exception {
+
+        Authenticator.setDefault(new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(username, password.toCharArray());
+            }
+        });
+
+        PORT = rpcport;
+        client = new JsonRpcHttpClient(new URL(rpcurl + ":" + rpcport));
     }
 
-    public JSONObject callMethod(String method, Object...params) throws Exception {
-        HttpClient client = HttpClientBuilder.create().build();
-
-        HttpPost request = new HttpPost(uri);
-        request.setHeader("Accept", "application/json");
-
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("method", method);
-        jsonObject.put("params", Arrays.asList(params));
-
-        StringEntity requestBody = new StringEntity(jsonObject.toJSONString());
-        requestBody.setContentType("application/json");
-        request.setEntity(requestBody);
-
-        HttpResponse response = client.execute(request);
-
-        System.out.println("Calling method : " + method);
-        System.out.println("Response Code : " + response.getStatusLine().getStatusCode());
-
-        JSONParser parser = new JSONParser();
-        try {
-            jsonObject = (JSONObject) parser.parse(new InputStreamReader(response.getEntity().getContent()));
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-
-        if(jsonObject.get("error") != null) {
-            throw new Exception(jsonObject.get("error").toString());
-        }
-
-        return jsonObject;
+    public JsonRpcClient(String username, String password) throws Exception {
+        this(username, password, LOCALHOST, PORT);
     }
 
-    public File getFileFromNVS(String key) throws Exception {
-        JSONObject response = this.callMethod("name_show", key);
-        if(response.get("value") != null) {
-            throw new Exception();
-        }
-        String base64Encoded = (String) ((JSONObject) response.get("result")).get("value");
+    public File getFileFromNVS(String name) throws Throwable {
+        String base64Encoded = getValueFromNVS(name);
 
         System.out.println(Base64.getDecoder().decode(base64Encoded));
         return new File(""); //TODO
     }
 
-    public void putFileToNVS(String name, String filename, Integer days) throws Exception {
-        Path path = Paths.get(filename);
-        String content = Base64.getEncoder().encodeToString(Files.readAllBytes(path));
-        JSONObject response = this.callMethod("name_new", name, content, days);
-        System.out.println(response.toJSONString());
+    public String getValueFromNVS(String name) throws Throwable {
+        return nameShow(name).get("value");
     }
 
-
-    /**
-     * Function return all found json objects with similar name
-     * as regex.
-     * @param regexOfName - regex of destination name.
-     * @return - all found json objects.
-     */
-    private List<JSONObject> findAllSimilarNames(String regexOfName) throws Exception
-    {
-
-        String emercoinCmd = "name_filter";
-        JSONObject response = this.callMethod(emercoinCmd, new Object[]{regexOfName});
-
-        List<JSONObject> jsonObjects = new ArrayList<>();
-        JSONArray jsonArray = (JSONArray) response.get("result");
-
-        jsonArray.forEach(jsonObj->{
-            jsonObjects.add((JSONObject) jsonObj);
-        });
-
-        return jsonObjects;
+    public Map<String, String> nameShow(String name) throws Throwable {
+        return client.invoke("name_show", new Object[]{name}, LinkedHashMap.class);
     }
 
-    public JSONObject getValueFromNVS(String name) throws Exception {
-        return this.callMethod("name_show", name);
+    public Boolean verifyMessage(String address, String signature, String message) throws Throwable {
+        return client.invoke("verifymessage", new Object[]{address, signature, message}, Boolean.class);
     }
 
-    public boolean verifyMessage(String address, String signature, String message) {
-        String result = null;
-        try {
-            result = this.callMethod("verifymessage", address, signature, message).get("result").toString();
-            System.out.println(result);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return new Boolean(result);
-    }
-
-    public boolean proveOwnership(JSONObject serialItem) {
-        Pattern pattern = Pattern.compile("^Signature=(.*)$");
-        String serialName = (String) serialItem.get("name");
-        String value = (String) serialItem.get("value");
-        Matcher matcher = pattern.matcher(value);
+    public Boolean proveOwnership(String rootAddress, Map<String, String> dpoEntry) throws Throwable {
+        Pattern pattern = Pattern.compile("(?)Signature=(.*)");
+        Matcher matcher = pattern.matcher(dpoEntry.get("value"));
         if (matcher.find()) {
-
-            String address = null;
-            try {
-                JSONObject result = (JSONObject) this.getValueFromNVS(serialName).get("result");
-                address = (String) result.get("address");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
             String signature = matcher.group(1);
-            boolean result = verifyMessage(address, signature, serialName);
-            return result;
+            return verifyMessage(rootAddress, signature, dpoEntry.get("name"));
         } else {
-            System.out.println("Signature not found for dpo item: " + serialName);
+            System.out.println("Signature not found for dpo item: " + dpoEntry.get("name"));
         }
         return false;
     }
 
-    public void getVerifiedDpoItems(String name) throws Exception {
-        String filter = "^" + service + ":" + name + ":.+";
+    public void getVerifiedDpoItems(String brandName) throws Throwable {
+        String filter = "^" + SERVICE + ":" + brandName + ":.+";
+        String rootDpoAddress = nameShow(SERVICE + ":" + brandName).get("address");
 
-        JSONObject response = this.callMethod("name_filter", filter);
-        if (response.get("error") != null)
-            throw new Exception("Error occurred during execution");
-
-        JSONArray serialItems = (JSONArray) response.get("result");
-        if (serialItems.isEmpty())
-            throw new Exception("Specified brand was not found in NVS");
-
-        for (int i = 0; i < serialItems.size(); i++) {
+        List<LinkedHashMap<String, String>> result = client.invoke("name_filter", new Object[]{filter, 0}, LinkedList.class);
+        for (LinkedHashMap<String, String> dpoEntry : result) {
+            System.out.println("Brand: " + brandName);
+            System.out.println("Serial: " + dpoEntry.get("name"));
+            System.out.println("Verified: " + proveOwnership(rootDpoAddress, dpoEntry));
             System.out.println();
-            proveOwnership((JSONObject) serialItems.get(i));
         }
     }
 
-    public boolean putDocumentToDPO(String docname, String ownerEmercoinaddress,
-                                    String arbitraryEmercoinAddress, int docVersion, String localFilename) {
+    public boolean putDocumentToDPO(String docname, String emercoinaddress, String localFilename) throws Throwable {
         Path path = Paths.get(localFilename);
         String vendor = "iteco";
         try {
             String stringBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(path));
-            String signature = signMessage(ownerEmercoinaddress, stringBase64);
-            if (signature != null ) {
-                String value = "doc=" + stringBase64 +" Signature=" + signature;
-                String serialNumber = service + vendor + ":" + docname + ":" + docVersion;
-                callMethod("name_new", serialNumber, value, 10, arbitraryEmercoinAddress);
+            String signature = signMessage(emercoinaddress, stringBase64);
+            if (signature != null) {
+                String value = "doc=" + stringBase64 + " Signature=" + signature;
+                String serialNumber = "dpo:" + vendor + ":" + docname + ":0";
+//                callMethod("name_new", serialNumber, value, 10, emercoinaddress);
+                client.invoke("name_new", new Object[]{serialNumber, value, 10, emercoinaddress});
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -197,16 +103,7 @@ public class JsonRpcClient {
         return true;
     }
 
-    private String signMessage(String emercoinAddress, String message) {
-        String signature = null;
-        try {
-            JSONObject signedMessage = callMethod("signmessage", emercoinAddress, message);
-            if (signedMessage.containsKey("result")) {
-                signature = (String)signedMessage.get("result");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return signature;
+    private String signMessage(String emercoinaddress, String message) throws Throwable {
+        return client.invoke("signmessage", new Object[]{emercoinaddress, message}, String.class);
     }
 }
